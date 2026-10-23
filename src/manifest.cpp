@@ -8,7 +8,7 @@ bool manifest_load(const char* dir, Manifest* out) {
   memset(out, 0, sizeof(*out));
   strlcpy(out->dir, dir, MF_PATH_LEN);
 
-  char path[MF_PATH_LEN + 24];
+  char path[MF_PATH_LEN + 64];
   snprintf(path, sizeof(path), "%s/manifest.json", dir);
   File f = SD.open(path, FILE_READ);
   if (!f) return false;
