@@ -1,0 +1,59 @@
+name: SlayerX build
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: PlatformIO environment name (see platformio.ini)
+        required: true
+        default: esp32-s3-devkitc-1
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build
+        run: pio run -e ${{ inputs.env }}
+
+      - name: Check shim is present
+        run: |
+          grep -r "slayerx_return_to_loader" src/ \
+            && echo "shim OK" \
+            || echo "WARNING: shim missing in src/"
+
+      - name: Pack for SlayerX
+        run: |
+          python - <<'PY'
+          import glob, hashlib, json, os, shutil
+          bins = glob.glob('.pio/build/*/firmware.bin')
+          if not bins:
+              raise SystemExit('no firmware.bin produced')
+          dest = 'dist/firmware'
+          os.makedirs(dest, exist_ok=True)
+          shutil.copy2(bins[0], dest + '/app.bin')
+          size = os.path.getsize(dest + '/app.bin')
+          md5 = hashlib.md5(open(dest + '/app.bin', 'rb').read()).hexdigest()
+          json.dump({
+              'name': 'firmware', 'version': 'gha',
+              'app': 'app.bin', 'size': size, 'md5': md5,
+              'built_for': 'slayerx', 'psram': 'octal', 'flash_mb': 16,
+              'assets': None, 'notes': 'built by GitHub Actions'
+          }, open(dest + '/manifest.json', 'w'), indent=2)
+          print('packed', size, 'bytes', md5)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: slayerx-firmware
+          path: dist/**
