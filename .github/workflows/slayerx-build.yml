@@ -6,7 +6,7 @@ on:
       env:
         description: PlatformIO environment name (see platformio.ini)
         required: true
-        default: esp32-s3-devkitc-1
+        default: esp32-s3
 
 jobs:
   build:
